@@ -8,39 +8,11 @@ import { StorageService } from "@/services/storage";
 export default function BalanceProver() {
   const [balance, setBalance] = useState("");
   const [threshold, setThreshold] = useState("");
-  const [mockMode, setMockMode] = useState(false);
   const [proof, setProof] = useState<any>(null);
   const [status, setStatus] = useState<string>("");
   const [error, setError] = useState<string>("");
 
-  // Mock Proof Generator for Demo Purposes
-  const generateMockProof = async () => {
-    setStatus("Generating Mock Proof...");
-    await new Promise((r) => setTimeout(r, 1500));
-
-    // Create a fake Groth16 proof structure
-    const mockProof = {
-      pi_a: ["0x123...abc", "0x456...def", "1"],
-      pi_b: [
-        ["0x789...123", "0xabc...456"],
-        ["0xdef...789", "0x123...abc"],
-        ["1", "0"],
-      ],
-      pi_c: ["0x987...654", "0x321...cbd", "1"],
-      protocol: "groth16",
-      curve: "bn128",
-    };
-
-    setProof(mockProof);
-    setStatus("Proof Generated Successfully!");
-  };
-
   const generateProof = async () => {
-    if (mockMode) {
-      await generateMockProof();
-      return;
-    }
-
     setStatus("Generating Proof...");
     setError("");
     try {
@@ -53,15 +25,6 @@ export default function BalanceProver() {
 
       const wasmPath = "/circuits/balance.wasm";
       const zkeyPath = "/circuits/balance_final.zkey";
-
-      // Check if files exist before trying (improves UX)
-      try {
-        await fetch(wasmPath, { method: "HEAD" });
-      } catch {
-        throw new Error(
-          "Circuit files (balance.wasm) not found in /public/circuits/. Enable 'Mock Mode' to test the UI.",
-        );
-      }
 
       const { proof, publicSignals } = await snarkjs.groth16.fullProve(
         inputs,
@@ -77,16 +40,6 @@ export default function BalanceProver() {
       console.error(err);
       setError("Proof generation failed: " + (err.message || err));
       setStatus("Failed");
-
-      // Auto-suggest mock mode on failure
-      if (
-        err.message &&
-        (err.message.includes("fetch") || err.message.includes("Circuit"))
-      ) {
-        setError(
-          "Circuit files causing error. Switch to 'Mock Mode' for a demo.",
-        );
-      }
     }
   };
 
@@ -100,21 +53,6 @@ export default function BalanceProver() {
         <h2 className="text-2xl font-bold text-primary uppercase font-mono tracking-wider">
           ZKP Balance Prover
         </h2>
-        <div className="flex items-center gap-2">
-          <span
-            className={`text-xs uppercase font-mono transition-colors ${mockMode ? "text-success" : "text-text-muted"}`}
-          >
-            Mock Mode
-          </span>
-          <button
-            onClick={() => setMockMode(!mockMode)}
-            className={`w-10 h-5 rounded-full border transition-all relative ${mockMode ? "bg-success/20 border-success" : "bg-white/10 border-white/20"}`}
-          >
-            <div
-              className={`absolute top-0.5 w-3.5 h-3.5 rounded-full transition-all duration-300 ${mockMode ? "left-[22px] bg-success shadow-[0_0_10px_var(--success)]" : "left-1 bg-white/50"}`}
-            />
-          </button>
-        </div>
       </div>
 
       <div className="mb-6">
@@ -148,7 +86,7 @@ export default function BalanceProver() {
         disabled={!balance || !threshold}
         className="w-full p-4 bg-gradient-to-r from-transparent via-primary/10 to-transparent border border-primary text-primary font-bold mt-4 uppercase tracking-widest font-mono cursor-pointer transition-all relative overflow-hidden disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary hover:text-black hover:shadow-[0_0_20px_var(--primary)]"
       >
-        {mockMode ? "Generate Mock Proof" : "Generate Zero Knowledge Proof"}
+        Generate Zero Knowledge Proof
       </button>
 
       {status && (

@@ -30,13 +30,18 @@ export default function DocumentRedactor() {
 
   const analyzeImage = async () => {
     if (!image) return;
-    setStatus("Analyzing with OCR...");
+    setStatus("Initializing OCR Engine...");
 
     try {
-      const result = await Tesseract.recognize(image, "eng", {
+      const worker = await Tesseract.createWorker("eng", 1, {
+        workerPath: "/tesseract/worker.min.js",
+        corePath: "/tesseract/tesseract-core.wasm.js",
         logger: (m) =>
           setStatus(`OCR: ${m.status} (${Math.round(m.progress * 100)}%)`),
       });
+
+      const result = await worker.recognize(image);
+      await worker.terminate();
 
       console.log("OCR Result:", result);
 
@@ -74,9 +79,9 @@ export default function DocumentRedactor() {
 
       setBoxes(newBoxes);
       setStatus(`Analysis Complete. Found ${newBoxes.length} sensitive items.`);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setStatus("Detailed Text Analysis Failed");
+      setStatus("OCR Failed: " + (err.message || "Unknown error"));
     }
   };
 
