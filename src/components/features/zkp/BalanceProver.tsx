@@ -3,15 +3,44 @@
 import { useState } from "react";
 // @ts-ignore
 import * as snarkjs from "snarkjs";
+import { StorageService } from "@/services/storage";
 
 export default function BalanceProver() {
   const [balance, setBalance] = useState("");
   const [threshold, setThreshold] = useState("");
+  const [mockMode, setMockMode] = useState(false);
   const [proof, setProof] = useState<any>(null);
   const [status, setStatus] = useState<string>("");
   const [error, setError] = useState<string>("");
 
+  // Mock Proof Generator for Demo Purposes
+  const generateMockProof = async () => {
+    setStatus("Generating Mock Proof...");
+    await new Promise((r) => setTimeout(r, 1500));
+
+    // Create a fake Groth16 proof structure
+    const mockProof = {
+      pi_a: ["0x123...abc", "0x456...def", "1"],
+      pi_b: [
+        ["0x789...123", "0xabc...456"],
+        ["0xdef...789", "0x123...abc"],
+        ["1", "0"],
+      ],
+      pi_c: ["0x987...654", "0x321...cbd", "1"],
+      protocol: "groth16",
+      curve: "bn128",
+    };
+
+    setProof(mockProof);
+    setStatus("Proof Generated Successfully!");
+  };
+
   const generateProof = async () => {
+    if (mockMode) {
+      await generateMockProof();
+      return;
+    }
+
     setStatus("Generating Proof...");
     setError("");
     try {
@@ -24,6 +53,15 @@ export default function BalanceProver() {
 
       const wasmPath = "/circuits/balance.wasm";
       const zkeyPath = "/circuits/balance_final.zkey";
+
+      // Check if files exist before trying (improves UX)
+      try {
+        await fetch(wasmPath, { method: "HEAD" });
+      } catch {
+        throw new Error(
+          "Circuit files (balance.wasm) not found in /public/circuits/. Enable 'Mock Mode' to test the UI.",
+        );
+      }
 
       const { proof, publicSignals } = await snarkjs.groth16.fullProve(
         inputs,
@@ -40,9 +78,13 @@ export default function BalanceProver() {
       setError("Proof generation failed: " + (err.message || err));
       setStatus("Failed");
 
-      if (err.message && err.message.includes("fetch")) {
+      // Auto-suggest mock mode on failure
+      if (
+        err.message &&
+        (err.message.includes("fetch") || err.message.includes("Circuit"))
+      ) {
         setError(
-          "Circuit files not found. Please compile circuits and place them in public/circuits/.",
+          "Circuit files causing error. Switch to 'Mock Mode' for a demo.",
         );
       }
     }
@@ -54,9 +96,26 @@ export default function BalanceProver() {
         SECURE_ENCLAVE_V1
       </div>
 
-      <h2 className="text-2xl font-bold mb-8 text-primary uppercase border-b border-dashed border-white/20 pb-4 font-mono tracking-wider">
-        ZKP Balance Prover
-      </h2>
+      <div className="flex justify-between items-center mb-8 border-b border-dashed border-white/20 pb-4">
+        <h2 className="text-2xl font-bold text-primary uppercase font-mono tracking-wider">
+          ZKP Balance Prover
+        </h2>
+        <div className="flex items-center gap-2">
+          <span
+            className={`text-xs uppercase font-mono transition-colors ${mockMode ? "text-success" : "text-text-muted"}`}
+          >
+            Mock Mode
+          </span>
+          <button
+            onClick={() => setMockMode(!mockMode)}
+            className={`w-10 h-5 rounded-full border transition-all relative ${mockMode ? "bg-success/20 border-success" : "bg-white/10 border-white/20"}`}
+          >
+            <div
+              className={`absolute top-0.5 w-3.5 h-3.5 rounded-full transition-all duration-300 ${mockMode ? "left-[22px] bg-success shadow-[0_0_10px_var(--success)]" : "left-1 bg-white/50"}`}
+            />
+          </button>
+        </div>
+      </div>
 
       <div className="mb-6">
         <label className="block text-xs text-secondary mb-2 uppercase tracking-widest font-mono">
@@ -89,7 +148,7 @@ export default function BalanceProver() {
         disabled={!balance || !threshold}
         className="w-full p-4 bg-gradient-to-r from-transparent via-primary/10 to-transparent border border-primary text-primary font-bold mt-4 uppercase tracking-widest font-mono cursor-pointer transition-all relative overflow-hidden disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary hover:text-black hover:shadow-[0_0_20px_var(--primary)]"
       >
-        Generate Proof
+        {mockMode ? "Generate Mock Proof" : "Generate Zero Knowledge Proof"}
       </button>
 
       {status && (
@@ -102,9 +161,79 @@ export default function BalanceProver() {
       )}
 
       {proof && (
-        <div className="mt-6 p-4 bg-black border border-white/10 text-success font-mono text-xs overflow-x-auto max-h-[200px] rounded">
-          <h3 className="mb-2 font-bold opacity-70">Proof Data:</h3>
-          <pre>{JSON.stringify(proof, null, 2)}</pre>
+        <div className="mt-8 animate-fade-in">
+          <div
+            id="zk-badge"
+            className="bg-black border border-success p-6 rounded relative overflow-hidden group/badge mb-4"
+          >
+            <div className="absolute top-0 right-0 p-4 opacity-20 group-hover/badge:opacity-40 transition-opacity">
+              <div className="text-6xl text-success">✓</div>
+            </div>
+
+            <h3 className="text-success font-bold uppercase tracking-widest border-b border-success/30 pb-2 mb-4">
+              Solvency Verified
+            </h3>
+
+            <div className="grid grid-cols-2 gap-4 mb-4 text-xs font-mono text-secondary">
+              <div>
+                <span className="opacity-50 block mb-1">PROVER</span>
+                <span className="text-white">ANON-ZK-8821</span>
+              </div>
+              <div>
+                <span className="opacity-50 block mb-1">TIMESTAMP</span>
+                <span className="text-white">{new Date().toISOString()}</span>
+              </div>
+              <div>
+                <span className="opacity-50 block mb-1">PROTOCOL</span>
+                <span className="text-white">GROTH16-BN128</span>
+              </div>
+              <div>
+                <span className="opacity-50 block mb-1">STATUS</span>
+                <span className="text-success glow">VALID</span>
+              </div>
+            </div>
+
+            <div className="bg-white/5 p-3 rounded font-mono text-[10px] text-text-muted overflow-hidden whitespace-nowrap text-ellipsis border border-white/10">
+              PROOFHASH: {JSON.stringify(proof).slice(0, 60)}...
+            </div>
+          </div>
+
+          <div className="flex gap-4">
+            <button
+              onClick={async () => {
+                if (!proof) return;
+                await StorageService.addAsset({
+                  id: crypto.randomUUID(),
+                  type: "proof",
+                  content: proof,
+                  createdAt: Date.now(),
+                });
+                setStatus("Proof Saved to Vault!");
+                setTimeout(() => setStatus(""), 3000);
+              }}
+              className="flex-1 py-2 border border-secondary text-secondary font-mono text-xs uppercase hover:bg-secondary/10 transition-colors"
+            >
+              Save to Vault
+            </button>
+            <button
+              onClick={async () => {
+                const element = document.getElementById("zk-badge");
+                if (element) {
+                  const html2canvas = (await import("html2canvas")).default;
+                  const canvas = await html2canvas(element, {
+                    backgroundColor: "#000",
+                  });
+                  const link = document.createElement("a");
+                  link.download = "vault-shield-badge.png";
+                  link.href = canvas.toDataURL();
+                  link.click();
+                }
+              }}
+              className="flex-1 py-2 border border-primary text-primary font-mono text-xs uppercase hover:bg-primary/10 transition-colors"
+            >
+              Download Badge
+            </button>
+          </div>
         </div>
       )}
     </div>

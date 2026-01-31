@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Tesseract from "tesseract.js";
+import { StorageService } from "@/services/storage";
 
 interface RedactionBox {
   x: number;

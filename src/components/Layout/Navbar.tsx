@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useIdentity } from "@/context/IdentityContext";
 
 export default function Navbar() {
   const pathname = usePathname();
+  const { isConnected, identity, connect, disconnect } = useIdentity();
 
   const getLinkClasses = (path: string) => {
     const isActive = pathname === path;
@@ -14,6 +16,10 @@ export default function Navbar() {
 
     return `${base} ${isActive ? active : ""}`;
   };
+
+  const truncatedId = identity
+    ? `${identity.slice(0, 6)}...${identity.slice(-4)}`
+    : "";
 
   return (
     <nav className="sticky top-0 z-50 bg-black/85 backdrop-blur-md border-b border-white/10 shadow-lg transition-all duration-300">
@@ -51,12 +57,26 @@ export default function Navbar() {
           </Link>
         </div>
 
-        <button
-          className="px-4 py-2 bg-primary/10 border border-primary text-primary font-mono text-xs uppercase cursor-pointer transition-all duration-300 hover:bg-primary hover:text-black hover:shadow-[0_0_15px_rgba(0,243,255,0.5)]"
-          onClick={() => alert("Wallet Connect Placeholder")}
-        >
-          Connect ID
-        </button>
+        {isConnected ? (
+          <div className="flex items-center gap-4">
+            <span className="font-mono text-xs text-secondary bg-secondary/10 px-3 py-1 rounded border border-secondary/30">
+              {truncatedId}
+            </span>
+            <button
+              className="text-xs text-error hover:text-white uppercase font-mono tracking-wider transition-colors"
+              onClick={disconnect}
+            >
+              Disconnect
+            </button>
+          </div>
+        ) : (
+          <button
+            className="px-4 py-2 bg-primary/10 border border-primary text-primary font-mono text-xs uppercase cursor-pointer transition-all duration-300 hover:bg-primary hover:text-black hover:shadow-[0_0_15px_rgba(0,243,255,0.5)]"
+            onClick={connect}
+          >
+            Connect ID
+          </button>
+        )}
       </div>
     </nav>
   );

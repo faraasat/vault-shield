@@ -50,6 +50,33 @@ export const StorageService = {
     return db.get("profile", "default");
   },
 
+  // Generates a random "0x" address if one doesn't exist
+  async getOrInitIdentity(): Promise<UserProfile> {
+    const db = await initDB();
+    let profile = await db.get("profile", "default");
+
+    if (!profile) {
+      // Simulate a wallet address
+      const randomWallet =
+        "0x" +
+        Array.from({ length: 40 }, () =>
+          Math.floor(Math.random() * 16).toString(16),
+        ).join("");
+
+      const newProfile: UserProfile = {
+        id: "default",
+        name: randomWallet, // Use wallet as name
+        hasRedactedDocs: 0,
+        balanceProofGenerated: false,
+        createdAt: Date.now(),
+      };
+      await db.put("profile", newProfile);
+      return newProfile;
+    }
+
+    return profile;
+  },
+
   async saveProfile(profile: Partial<UserProfile>) {
     const db = await initDB();
     const existing = await db.get("profile", "default");
@@ -73,5 +100,10 @@ export const StorageService = {
   async getAssets() {
     const db = await initDB();
     return db.getAllFromIndex("assets", "by-date");
+  },
+
+  async getAssetsByType(type: "proof" | "document") {
+    const assets = await this.getAssets();
+    return assets.filter((a) => a.type === type);
   },
 };
