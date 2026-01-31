@@ -1,65 +1,97 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+"use client";
+
+import { useState, useEffect } from "react";
+import BalanceProver from "@/components/features/zkp/BalanceProver";
+import DocumentRedactor from "@/components/features/redaction/DocumentRedactor";
+import { StorageService } from "@/services/storage";
+import styles from "./Home.module.css";
 
 export default function Home() {
+  const [activeTab, setActiveTab] = useState<"dashboard" | "zkp" | "redact">(
+    "dashboard",
+  );
+  const [profile, setProfile] = useState<any>(null);
+
+  useEffect(() => {
+    StorageService.getProfile().then((p) => {
+      if (!p) {
+        StorageService.saveProfile({ name: "New User" }).then(setProfile);
+      } else {
+        setProfile(p);
+      }
+    });
+  }, []);
+
   return (
     <div className={styles.page}>
+      <header className={styles.header}>
+        <div className={styles.headerContent}>
+          <div className={styles.logoArea}>
+            <div className={styles.logoIcon}>V</div>
+            <span className={styles.logoText}>VaultShield</span>
+          </div>
+          <nav className={styles.nav}>
+            {(["dashboard", "zkp", "redact"] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`${styles.navButton} ${activeTab === tab ? styles.navButtonActive : styles.navButtonInactive}`}
+              >
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </button>
+            ))}
+          </nav>
+          <div className={styles.userInfo}>
+            {profile ? `Welcome, ${profile.name}` : "Loading..."}
+          </div>
+        </div>
+      </header>
+
       <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.tsx file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+        {activeTab === "dashboard" && (
+          <div>
+            <section className={styles.hero}>
+              <h1 className={styles.heroTitle}>Privacy First. Local Always.</h1>
+              <p className={styles.heroText}>
+                Verify your financial status and inspect documents without ever
+                sending your data to a server.
+              </p>
+            </section>
+
+            <div className={styles.grid}>
+              <div onClick={() => setActiveTab("zkp")} className={styles.card}>
+                <h3 className={styles.cardTitle}>ZKP Badge Generator &rarr;</h3>
+                <p className={styles.cardText}>
+                  Generate "Proof of Minimum Balance" locally using zk-SNARKs.
+                </p>
+              </div>
+              <div
+                onClick={() => setActiveTab("redact")}
+                className={styles.card}
+              >
+                <h3 className={styles.cardTitle}>PII Redactor &rarr;</h3>
+                <p className={styles.cardText}>
+                  Automatically detect and censor sensitive info from images
+                  locally.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "zkp" && (
+          <div style={{ maxWidth: "600px", margin: "0 auto" }}>
+            <h2 className={styles.sectionTitle}>Financial Verification</h2>
+            <BalanceProver />
+          </div>
+        )}
+
+        {activeTab === "redact" && (
+          <div style={{ maxWidth: "800px", margin: "0 auto" }}>
+            <h2 className={styles.sectionTitle}>Document Privacy</h2>
+            <DocumentRedactor />
+          </div>
+        )}
       </main>
     </div>
   );

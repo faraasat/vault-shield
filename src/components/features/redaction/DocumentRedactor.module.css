@@ -1,0 +1,98 @@
+.container {
+  padding: 1.5rem;
+  border: 1px solid #e5e5e5;
+  border-radius: 0.5rem;
+  background-color: white;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.fileInputContainer {
+  margin-bottom: 1rem;
+}
+
+.fileInput {
+  display: block;
+  width: 100%;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.status {
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+  color: #2563eb;
+  font-family: monospace;
+}
+
+.previewContainer {
+  position: relative;
+  border: 1px solid #d1d5db;
+  border-radius: 0.25rem;
+  overflow: auto;
+  max-height: 500px;
+  margin-bottom: 1rem;
+  background-color: #f9fafb;
+}
+
+.previewImage {
+  max-width: 100%;
+  display: block;
+}
+
+.canvas {
+  max-width: 100%;
+  display: block;
+}
+
+.controls {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.button {
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  color: white;
+}
+
+.primaryButton {
+  background-color: #7c3aed; /* Purple */
+}
+
+.secondaryButton {
+  background-color: #e5e7eb;
+  color: #1f2937;
+}
+
+.successButton {
+  background-color: #059669;
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (prefers-color-scheme: dark) {
+  .container {
+    background-color: #171717;
+    border-color: #333;
+    color: #fff;
+  }
+  .secondaryButton {
+    background-color: #333;
+    color: #fff;
+  }
+}
