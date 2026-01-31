@@ -93,25 +93,31 @@ export default function DocumentRedactor() {
 
   const analyzeImage = async () => {
     if (!image) return;
+    const img = imageRef.current;
+    if (!img) {
+      setStatus("Image reference missing");
+      return;
+    }
+
+    if (img.naturalWidth === 0) {
+      setStatus("Waiting for image metadata...");
+      return;
+    }
+
     setBoxes([]);
     setRawText("");
-    setStatus("Pre-processing image...");
+    setStatus("Scanning document...");
 
     try {
       const processedImage = await preprocessImage(image);
 
-      setStatus("Initializing OCR Engine...");
+      setStatus("Extracting intelligence...");
       const worker = await Tesseract.createWorker("eng", 1, {
-        workerPath: "/tesseract/worker.min.js",
-        corePath: "/tesseract/tesseract-core.wasm.js",
-        langPath: "/tesseract",
-        logger: (m) =>
-          setStatus(`OCR: ${m.status} (${Math.round(m.progress * 100)}%)`),
+        logger: (m) => setStatus(`Shield: ${Math.round(m.progress * 100)}%`),
       });
 
-      // Set parameters for better receipt segmentation
       await worker.setParameters({
-        tessedit_pageseg_mode: "1" as any, // Automatic page segmentation with OSD
+        tessedit_pageseg_mode: "1" as any,
         tessjs_create_hocr: "1",
         tessjs_create_tsv: "1",
       });
@@ -119,26 +125,37 @@ export default function DocumentRedactor() {
       const result = await worker.recognize(processedImage);
       await worker.terminate();
 
-      console.log("OCR Full Result:", result);
       setRawText(result.data.text);
       const data = result.data as any;
+      console.log("OCR DATA DUMP:", data);
 
       if (!data || !data.text || data.text.trim().length === 0) {
-        setStatus("OCR finished but no readable text detected.");
+        setStatus("Audit failed: No legible data.");
         return;
       }
 
-      const newBoxes: RedactionBox[] = [];
-      const patterns = {
-        EMAIL: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/,
-        PHONE: /\b(?:\+?(\d{1,3}))?[-. (]*(\d{3})[-. )]*(\d{3})[-. ]*(\d{4})\b/,
-        GENERIC_PHONE: /\b\d{10,12}\b/,
-        CC: /\b(?:\d[ -]*?){13,19}\b/,
-        DATE: /\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b/,
-        PASSPORT: /\b[A-Z0-9]{7,15}\b/i,
-      };
+      const words = data.text.split("\n") || [];
+      const lines = data.text.split("\n") || [];
+      console.log(
+        `Structures Discovered: ${words.length} words, ${lines.length} lines`,
+      );
 
-      const highRiskKeywords = [
+      const newBoxes: RedactionBox[] = [];
+      const baseWidth = img.naturalWidth * 2;
+      const baseHeight = img.naturalHeight * 2;
+      console.log(`Dim Scale: ${baseWidth}x${baseHeight}`);
+
+      const patterns = [
+        {
+          label: "EMAIL",
+          regex: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/,
+        },
+        { label: "PHONE", regex: /(?:\d[ -.]?){8,12}\d/ },
+        { label: "GENERIC_ID", regex: /\d{10,12}/ },
+        { label: "DATE", regex: /\d{1,2}[/-]\d{1,2}[/-]\d{2,4}/ },
+      ];
+
+      const highRisk = [
         "total",
         "amount",
         "balance",
@@ -153,100 +170,103 @@ export default function DocumentRedactor() {
         "email",
         "name",
         "surname",
+        "mobile",
         "birth",
-        "geburt",
         "place",
         "nationality",
-        "expiry",
-        "authority",
-        "signature",
-        "inhaber",
-        "titulaire",
-        "pass-nr",
-        "bundesrepublik",
         "kolkata",
+        "rs",
+        "table",
+        "address",
+        "maarhaba",
+        "gariahat",
+        "dakuria",
+        "bill no",
+        "raju",
         "pulao",
         "qty",
-        "service",
-        "charge",
-        "mobile",
-        "ph",
+        "date",
+        "700031",
+        "033-",
+        "contact:",
+        "e-mail:",
       ];
 
-      // Process Words - More robust coordinate mapping
-      if (data.words) {
-        data.words.forEach((word: any) => {
-          const text = word.text || "";
-          if (word.confidence < 30) return; // Skip low confidence noise
+      const addBox = (bbox: any, label: string, txt: string) => {
+        if (!bbox) return;
+        const b = {
+          x: (bbox.x0 / baseWidth) * 100,
+          y: (bbox.y0 / baseHeight) * 100,
+          w: ((bbox.x1 - bbox.x0) / baseWidth) * 100,
+          h: ((bbox.y1 - bbox.y0) / baseHeight) * 100,
+          label,
+        };
+        newBoxes.push(b);
+        console.log(`MATCH [${label}] on "${txt}":`, b);
+      };
 
-          for (const [label, regex] of Object.entries(patterns)) {
-            if (regex.test(text)) {
-              newBoxes.push({
-                x: word.bbox.x0 / 2,
-                y: word.bbox.y0 / 2,
-                w: (word.bbox.x1 - word.bbox.x0) / 2,
-                h: (word.bbox.y1 - word.bbox.y0) / 2,
-                label,
-              });
-              return;
-            }
-          }
+      // 1. Process Flat Words
+      words.forEach((word: any) => {
+        const text = word || "";
+        if (text.length < 3) return;
+
+        patterns.forEach((p) => {
+          if (p.regex.test(text)) addBox(word.bbox, p.label, text);
         });
-      }
 
-      // Process Lines for context
-      if (data.lines) {
-        data.lines.forEach((line: any) => {
-          const text = line.text?.toLowerCase() || "";
-          if (line.confidence < 25) return;
+        if (highRisk.some((kw) => text.toLowerCase().includes(kw))) {
+          addBox(word.bbox, "SENSITIVE", text);
+        }
+      });
 
-          const hasKeyword = highRiskKeywords.some((kw) => text.includes(kw));
-          const hasCurrency =
-            text.includes("$") ||
-            text.includes("€") ||
-            text.includes("£") ||
-            text.includes("¥") ||
-            text.includes("rs");
-          const hasBigNumber = /\d{5,}/.test(text);
-          const hasIDPattern = /[A-Z]{1,2}[0-9<]{7,}/i.test(text);
+      // 2. Process Flat Lines
+      lines.forEach((line: any) => {
+        const text = line?.toLowerCase() || "";
+        const hasKeyword = highRisk.some((kw) => text.includes(kw));
+        const hasCurrency =
+          text.includes("rs") || text.includes("$") || text.includes("inr");
+        const hasLongNum = /\d{6,}/.test(text);
 
-          if (
-            hasKeyword ||
-            (hasCurrency && /\d/.test(text)) ||
-            hasBigNumber ||
-            hasIDPattern
-          ) {
-            newBoxes.push({
-              x: line.bbox.x0 / 2,
-              y: line.bbox.y0 / 2,
-              w: (line.bbox.x1 - line.bbox.x0) / 2,
-              h: (line.bbox.y1 - line.bbox.y0) / 2,
-              label: "CONFIDENTIAL",
-            });
-          }
-        });
-      }
+        if (hasKeyword || hasCurrency || hasLongNum) {
+          addBox(line.bbox, "CONFIDENTIAL", text.trim());
+        }
+      });
 
-      setBoxes(newBoxes);
-      setStatus(`Analysis Complete. Found ${newBoxes.length} sensitive items.`);
+      const uniqueBoxes = newBoxes.filter(
+        (box, index, self) =>
+          index ===
+          self.findIndex(
+            (b) => Math.abs(b.x - box.x) < 0.1 && Math.abs(b.y - box.y) < 0.1,
+          ),
+      );
+
+      setBoxes(uniqueBoxes);
+      setStatus(
+        `Shield Active: Shielded ${uniqueBoxes.length} sensitive items.`,
+      );
+      console.log(`TOTAL REDACTION TARGETS: ${uniqueBoxes.length}`);
     } catch (err: any) {
-      console.error(err);
-      setStatus("OCR Failed: " + (err.message || "Unknown error"));
+      console.error("SHIELD FAILURE:", err);
+      setStatus("OCR Failed");
     }
   };
-
   useEffect(() => {
     const canvas = canvasRef.current;
     const img = imageRef.current;
     if (canvas && img && image) {
-      canvas.width = img.width;
-      canvas.height = img.height;
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
       const ctx = canvas.getContext("2d");
       if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0);
         ctx.fillStyle = "black";
         boxes.forEach((box) => {
-          ctx.fillRect(box.x, box.y, box.w, box.h);
+          const px = (box.x / 100) * canvas.width;
+          const py = (box.y / 100) * canvas.height;
+          const pw = (box.w / 100) * canvas.width;
+          const ph = (box.h / 100) * canvas.height;
+          ctx.fillRect(px, py, pw, ph);
         });
       }
     }
