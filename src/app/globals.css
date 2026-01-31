@@ -116,3 +116,7 @@ body::after {
     text-shadow: 0 0 20px rgba(0, 243, 255, 0.3);
   }
 }
+
+button {
+  cursor: pointer;
+}

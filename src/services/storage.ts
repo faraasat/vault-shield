@@ -31,7 +31,7 @@ const DB_NAME = "vault-shield-db";
 const DB_VERSION = 1;
 
 export const initDB = async (): Promise<IDBPDatabase<VaultSchema>> => {
-  return openDB<VaultSchema>(DB_NAME, DB_VERSION, {
+  const db = await openDB<VaultSchema>(DB_NAME, DB_VERSION, {
     upgrade(db) {
       if (!db.objectStoreNames.contains("profile")) {
         db.createObjectStore("profile", { keyPath: "id" });
@@ -42,6 +42,11 @@ export const initDB = async (): Promise<IDBPDatabase<VaultSchema>> => {
       }
     },
   });
+  if (typeof window !== "undefined") {
+    // @ts-ignore
+    window._db = db;
+  }
+  return db;
 };
 
 export const StorageService = {

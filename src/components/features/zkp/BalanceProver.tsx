@@ -4,8 +4,10 @@ import { useState } from "react";
 // @ts-ignore
 import * as snarkjs from "snarkjs";
 import { StorageService } from "@/services/storage";
+import { useIdentity } from "@/context/IdentityContext";
 
 export default function BalanceProver() {
+  const { identity } = useIdentity();
   const [balance, setBalance] = useState("");
   const [threshold, setThreshold] = useState("");
   const [proof, setProof] = useState<any>(null);
@@ -102,24 +104,42 @@ export default function BalanceProver() {
         <div className="mt-8 animate-fade-in">
           <div
             id="zk-badge"
-            className="bg-black border border-success p-6 rounded relative overflow-hidden group/badge mb-4"
+            className="bg-black border border-[#00ff9d] p-6 rounded relative overflow-hidden group/badge mb-4"
+            style={{ backgroundColor: "#000000", borderColor: "#00ff9d" }}
           >
             <div className="absolute top-0 right-0 p-4 opacity-20 group-hover/badge:opacity-40 transition-opacity">
-              <div className="text-6xl text-success">✓</div>
+              <div
+                className="text-6xl text-[#00ff9d]"
+                style={{ color: "#00ff9d" }}
+              >
+                ✓
+              </div>
             </div>
 
-            <h3 className="text-success font-bold uppercase tracking-widest border-b border-success/30 pb-2 mb-4">
+            <h3
+              className="text-[#00ff9d] font-bold uppercase tracking-widest border-b border-[#00ff9d]/30 pb-2 mb-4"
+              style={{
+                color: "#00ff9d",
+                borderBottomColor: "rgba(0, 255, 157, 0.3)",
+              }}
+            >
               Solvency Verified
             </h3>
 
             <div className="grid grid-cols-2 gap-4 mb-4 text-xs font-mono text-secondary">
               <div>
                 <span className="opacity-50 block mb-1">PROVER</span>
-                <span className="text-white">ANON-ZK-8821</span>
+                <span className="text-white truncate block max-w-[120px]">
+                  {identity
+                    ? identity.slice(0, 10) + "..." + identity.slice(-4)
+                    : "ANON_USER"}
+                </span>
               </div>
               <div>
                 <span className="opacity-50 block mb-1">TIMESTAMP</span>
-                <span className="text-white">{new Date().toISOString()}</span>
+                <span className="text-white">
+                  {new Date().toLocaleString()}
+                </span>
               </div>
               <div>
                 <span className="opacity-50 block mb-1">PROTOCOL</span>
@@ -127,11 +147,22 @@ export default function BalanceProver() {
               </div>
               <div>
                 <span className="opacity-50 block mb-1">STATUS</span>
-                <span className="text-success glow">VALID</span>
+                <span
+                  className="text-[#00ff9d] glow"
+                  style={{ color: "#00ff9d" }}
+                >
+                  VALID
+                </span>
               </div>
             </div>
 
-            <div className="bg-white/5 p-3 rounded font-mono text-[10px] text-text-muted overflow-hidden whitespace-nowrap text-ellipsis border border-white/10">
+            <div
+              className="bg-white/5 p-3 rounded font-mono text-[10px] text-text-muted overflow-hidden whitespace-nowrap text-ellipsis border border-white/10"
+              style={{
+                backgroundColor: "rgba(255,255,255,0.05)",
+                borderColor: "rgba(255,255,255,0.1)",
+              }}
+            >
               PROOFHASH: {JSON.stringify(proof).slice(0, 60)}...
             </div>
           </div>
@@ -140,14 +171,26 @@ export default function BalanceProver() {
             <button
               onClick={async () => {
                 if (!proof) return;
-                await StorageService.addAsset({
-                  id: crypto.randomUUID(),
-                  type: "proof",
-                  content: proof,
-                  createdAt: Date.now(),
-                });
-                setStatus("Proof Saved to Vault!");
-                setTimeout(() => setStatus(""), 3000);
+                try {
+                  const id =
+                    typeof crypto?.randomUUID === "function"
+                      ? crypto.randomUUID()
+                      : Math.random().toString(36).substring(2, 15);
+
+                  console.log("Saving proof to vault:", proof);
+                  await StorageService.addAsset({
+                    id,
+                    type: "proof",
+                    content: proof,
+                    createdAt: Date.now(),
+                  });
+                  console.log("Proof saved successfully");
+                  setStatus("Proof Saved to Vault!");
+                  setTimeout(() => setStatus(""), 3000);
+                } catch (err) {
+                  console.error("Critical Save Error:", err);
+                  setStatus("Save Failed: Check console for logs");
+                }
               }}
               className="flex-1 py-2 border border-secondary text-secondary font-mono text-xs uppercase hover:bg-secondary/10 transition-colors"
             >
@@ -156,15 +199,86 @@ export default function BalanceProver() {
             <button
               onClick={async () => {
                 const element = document.getElementById("zk-badge");
+                console.log(
+                  "Download Badge clicked, element found:",
+                  !!element,
+                );
                 if (element) {
-                  const html2canvas = (await import("html2canvas")).default;
-                  const canvas = await html2canvas(element, {
-                    backgroundColor: "#000",
-                  });
-                  const link = document.createElement("a");
-                  link.download = "vault-shield-badge.png";
-                  link.href = canvas.toDataURL();
-                  link.click();
+                  try {
+                    setStatus("Preparing Badge Download...");
+                    console.log("Importing html2canvas...");
+                    const html2canvas = (await import("html2canvas")).default;
+                    console.log("Capturing element...");
+                    const canvas = await html2canvas(element, {
+                      backgroundColor: "#000",
+                      useCORS: true,
+                      scale: 2,
+                      logging: true,
+                      onclone: (clonedDoc) => {
+                        // Crucial Fix: Standard html2canvas doesn't support oklab/oklch
+                        // We must find and replace these in the cloned document's styles
+                        const problematicElements =
+                          clonedDoc.querySelectorAll("*");
+
+                        // Also remove any <style> tags that might contain oklab/oklch
+                        const styles = clonedDoc.querySelectorAll("style");
+                        styles.forEach((s) => {
+                          if (s.innerHTML.includes("okl")) {
+                            s.innerHTML = s.innerHTML.replace(
+                              /okl(ab|ch)\([^)]+\)/g,
+                              "#000",
+                            );
+                          }
+                        });
+
+                        problematicElements.forEach((el) => {
+                          const htmlEl = el as HTMLElement;
+                          if (htmlEl.style) {
+                            // Strip problematic styles
+                            const style = window.getComputedStyle(htmlEl);
+                            const props = [
+                              "color",
+                              "backgroundColor",
+                              "borderColor",
+                              "borderBottomColor",
+                              "borderTopColor",
+                              "outlineColor",
+                            ];
+                            props.forEach((prop) => {
+                              // @ts-ignore
+                              const val = style[prop];
+                              if (
+                                val &&
+                                (val.includes("oklab") || val.includes("oklch"))
+                              ) {
+                                if (prop === "color")
+                                  htmlEl.style.color = "#ffffff";
+                                else if (prop.includes("background"))
+                                  htmlEl.style.backgroundColor = "#000000";
+                                else htmlEl.style.borderColor = "#00ff9d";
+                              }
+                            });
+
+                            // Remove animations/transitions
+                            htmlEl.style.animation = "none";
+                            htmlEl.style.transition = "none";
+                          }
+                        });
+                      },
+                    });
+                    console.log("Canvas generated, creating download link...");
+                    const link = document.createElement("a");
+                    link.download = `vault-shield-badge-${Date.now()}.png`;
+                    link.href = canvas.toDataURL("image/png");
+                    link.click();
+                    setStatus("Badge Downloaded!");
+                    setTimeout(() => setStatus(""), 3000);
+                  } catch (err) {
+                    console.error("Download Error:", err);
+                    setStatus("Download Failed: Check console");
+                  }
+                } else {
+                  setError("Badge element not found in DOM");
                 }
               }}
               className="flex-1 py-2 border border-primary text-primary font-mono text-xs uppercase hover:bg-primary/10 transition-colors"
