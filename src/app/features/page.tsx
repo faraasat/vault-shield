@@ -1,5 +1,3 @@
-import styles from "./Features.module.css";
-
 export default function Features() {
   const features = [
     {
@@ -35,15 +33,27 @@ export default function Features() {
   ];
 
   return (
-    <div className={styles.container}>
-      <h1 className={styles.title}>System Capabilities</h1>
+    <div className="max-w-[1200px] mx-auto my-16 px-8 animate-fade-in">
+      <h1 className="text-5xl md:text-6xl font-black text-center mb-16 text-white uppercase tracking-[0.2em] drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">
+        System Capabilities
+      </h1>
 
-      <div className={styles.grid}>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {features.map((f, i) => (
-          <div key={i} className={styles.card}>
-            <div className={styles.icon}>{f.icon}</div>
-            <h3 className={styles.cardTitle}>{f.title}</h3>
-            <p className={styles.cardText}>{f.desc}</p>
+          <div
+            key={i}
+            className="bg-black/80 border border-white/10 p-8 rounded-xl relative transition-all duration-300 backdrop-blur-sm hover:-translate-y-2 hover:border-primary hover:shadow-[0_0_20px_rgba(0,243,255,0.1)] group overflow-hidden"
+          >
+            {/* Hover bar effect */}
+            <div className="absolute top-0 left-0 w-full h-[2px] bg-primary scale-x-0 origin-left transition-transform duration-300 group-hover:scale-x-100" />
+
+            <div className="text-4xl mb-6 text-secondary drop-shadow-[0_0_10px_rgba(0,255,157,0.5)] group-hover:scale-110 transition-transform duration-300 inline-block">
+              {f.icon}
+            </div>
+            <h3 className="text-xl font-bold text-white mb-4 font-mono uppercase tracking-wide group-hover:text-primary transition-colors">
+              {f.title}
+            </h3>
+            <p className="text-text-muted leading-relaxed text-sm">{f.desc}</p>
           </div>
         ))}
       </div>

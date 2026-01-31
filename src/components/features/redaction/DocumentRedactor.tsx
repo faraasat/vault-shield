@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from "react";
 import Tesseract from "tesseract.js";
-import styles from "./DocumentRedactor.module.css";
 
 interface RedactionBox {
   x: number;
@@ -98,48 +97,59 @@ export default function DocumentRedactor() {
   }, [image, boxes]);
 
   return (
-    <div className={styles.container}>
-      <h2 className={styles.title}>PII Redaction Tool</h2>
+    <div className="p-6 border border-secondary bg-black/80 shadow-[0_0_20px_rgba(0,255,157,0.15)] max-w-4xl mx-auto relative rounded-lg">
+      <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-secondary to-transparent"></div>
 
-      <div className={styles.fileInputContainer}>
+      <h2 className="text-2xl font-bold mb-8 text-secondary uppercase font-mono flex items-center gap-4 before:block before:w-2 before:h-2 before:bg-secondary before:shadow-[0_0_10px_var(--secondary)]">
+        PII Redaction Tool
+      </h2>
+
+      <div className="mb-8 p-8 border border-dashed border-secondary rounded bg-secondary/5 text-center transition-all hover:bg-secondary/10 hover:shadow-[0_0_15px_rgba(0,255,157,0.2)]">
         <input
           type="file"
           accept="image/*"
           onChange={handleFileChange}
-          className={styles.fileInput}
+          className="block w-full text-sm text-text-muted font-mono file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-secondary/10 file:text-secondary hover:file:bg-secondary/20 cursor-pointer"
         />
       </div>
 
-      {status && <p className={styles.status}>{status}</p>}
+      {status && (
+        <p className="mb-4 text-sm text-secondary font-mono p-2 border-l-2 border-secondary bg-secondary/5">
+          {status}
+        </p>
+      )}
 
       {image && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-          <div className={styles.previewContainer}>
+        <div className="flex flex-col gap-4">
+          <div className="relative border border-white/10 overflow-hidden max-h-[600px] mb-6 bg-black group">
+            {/* Scanline Effect */}
+            <div className="absolute top-0 left-0 w-full h-[2px] bg-primary/50 shadow-[0_0_10px_var(--primary)] animate-scanline pointer-events-none z-10" />
+
             <img
               ref={imageRef}
               src={image}
               alt="Original"
               onLoad={() => setStatus("Image Loaded. Ready to Analyze.")}
               style={{ display: boxes.length > 0 ? "none" : "block" }}
-              className={styles.previewImage}
+              className="max-w-full block contrast-[1.1] brightness-[0.9] grayscale-[0.2]"
             />
             <canvas
               ref={canvasRef}
               style={{ display: boxes.length > 0 ? "block" : "none" }}
-              className={styles.canvas}
+              className="max-w-full block"
             />
           </div>
 
-          <div className={styles.controls}>
+          <div className="flex gap-4 flex-wrap justify-center">
             <button
               onClick={analyzeImage}
-              className={`${styles.button} ${styles.primaryButton}`}
+              className="px-6 py-3 border border-secondary bg-secondary/20 text-secondary font-bold uppercase font-mono tracking-wider transition-all hover:bg-secondary hover:text-black hover:shadow-[0_0_15px_var(--secondary)]"
             >
               Auto-Redact PII
             </button>
             <button
               onClick={() => setBoxes([])}
-              className={`${styles.button} ${styles.secondaryButton}`}
+              className="px-6 py-3 border border-text-muted bg-transparent text-text-muted font-bold uppercase font-mono tracking-wider transition-all hover:border-white hover:text-white"
             >
               Reset Redactions
             </button>
@@ -151,7 +161,7 @@ export default function DocumentRedactor() {
                 link.click();
               }}
               disabled={boxes.length === 0}
-              className={`${styles.button} ${styles.successButton}`}
+              className="px-6 py-3 border border-success bg-success/10 text-success font-bold uppercase font-mono tracking-wider transition-all hover:bg-success hover:text-black hover:shadow-[0_0_15px_var(--success)] disabled:opacity-30 disabled:cursor-not-allowed disabled:shadow-none disabled:bg-transparent"
             >
               Download Redacted
             </button>
